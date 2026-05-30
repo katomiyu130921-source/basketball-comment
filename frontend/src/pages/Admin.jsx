@@ -225,7 +225,7 @@ export default function Admin() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{u.username}</span>
-                  {u.role === "admin" && (
+                  {u.role === "org_admin" && (
                     <span className="text-xs bg-orange-900 text-orange-400 px-2 py-0.5 rounded">管理者</span>
                   )}
                 </div>
@@ -233,7 +233,7 @@ export default function Admin() {
                   {u.team_name ? `チーム: ${u.team_name}` : "チーム未所属"}
                 </p>
               </div>
-              {u.role !== "admin" && (
+              {u.role === "member" && (
                 <button
                   onClick={() => deleteUser(u.id, u.username)}
                   className="text-xs text-red-500 hover:text-red-400 shrink-0"

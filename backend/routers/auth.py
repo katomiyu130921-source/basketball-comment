@@ -11,7 +11,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 class RegisterRequest(BaseModel):
     username: str
     password: str
-    invite_code: Optional[str] = None
+    invite_code: Optional[str] = None   # team invite_code for member
+    admin_code: Optional[str] = None    # org admin_code for org_admin
 
 
 class LoginRequest(BaseModel):
@@ -26,28 +27,42 @@ def register(body: RegisterRequest):
 
     conn = get_conn()
 
-    # 1人目のユーザーは管理者
+    # 1人目のユーザーは super_admin
     user_count = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
-    role = "admin" if user_count == 0 else "member"
-
-    # メンバーは招待コード必須
-    team_id = None
-    if role == "member":
-        if not body.invite_code:
+    if user_count == 0:
+        role = "super_admin"
+        org_id = None
+        team_id = None
+    elif body.admin_code:
+        # org admin_code → org_admin
+        org = conn.execute(
+            "SELECT id FROM organizations WHERE admin_code = ?", (body.admin_code,)
+        ).fetchone()
+        if not org:
             conn.close()
-            raise HTTPException(400, "招待コードを入力してください")
+            raise HTTPException(400, "管理者コードが無効です")
+        role = "org_admin"
+        org_id = org["id"]
+        team_id = None
+    elif body.invite_code:
+        # team invite_code → member
         team = conn.execute(
-            "SELECT id FROM teams WHERE invite_code = ?", (body.invite_code,)
+            "SELECT id, org_id FROM teams WHERE invite_code = ?", (body.invite_code,)
         ).fetchone()
         if not team:
             conn.close()
             raise HTTPException(400, "招待コードが無効です")
+        role = "member"
+        org_id = team["org_id"]
         team_id = team["id"]
+    else:
+        conn.close()
+        raise HTTPException(400, "招待コードまたは管理者コードを入力してください")
 
     try:
         conn.execute(
-            "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-            (body.username, hash_password(body.password), role),
+            "INSERT INTO users (username, password_hash, role, org_id) VALUES (?, ?, ?, ?)",
+            (body.username, hash_password(body.password), role, org_id),
         )
         conn.commit()
         user_id = conn.execute(

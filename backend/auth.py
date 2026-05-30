@@ -35,7 +35,7 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> d
 
     conn = get_conn()
     row = conn.execute("""
-        SELECT u.id, u.username, u.role, tm.team_id
+        SELECT u.id, u.username, u.role, u.org_id, tm.team_id
         FROM users u
         LEFT JOIN team_members tm ON u.id = tm.user_id
         WHERE u.id = ?
@@ -46,8 +46,9 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> d
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     return {
-        "id":      row["id"],
+        "id":       row["id"],
         "username": row["username"],
-        "role":    row["role"],
-        "team_id": row["team_id"],
+        "role":     row["role"],
+        "org_id":   row["org_id"],
+        "team_id":  row["team_id"],
     }

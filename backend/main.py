@@ -5,9 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from db import init_db
-from routers import auth, videos, comments, admin
+from routers import auth, videos, comments, admin, super_admin
 
-app = FastAPI(title="Basketball Comment API")
+app = FastAPI(title="Video Clip Note API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,6 +21,7 @@ app.include_router(auth.router)
 app.include_router(videos.router)
 app.include_router(comments.router)
 app.include_router(admin.router)
+app.include_router(super_admin.router)
 
 
 @app.on_event("startup")

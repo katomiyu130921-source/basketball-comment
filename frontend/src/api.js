@@ -19,11 +19,11 @@ async function req(path, opts = {}) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const register = (username, password, invite_code) =>
+export const register = (username, password, invite_code, admin_code) =>
   req("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, invite_code }),
+    body: JSON.stringify({ username, password, invite_code, admin_code }),
   });
 
 export const login = (username, password) =>
@@ -52,7 +52,7 @@ export const addComment = (videoId, data) =>
 export const deleteComment = (id) =>
   req(`/api/comments/${id}`, { method: "DELETE" });
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
+// ── Admin (org_admin) ─────────────────────────────────────────────────────────
 export const adminListTeams = () => req("/api/admin/teams");
 export const adminCreateTeam = (name) =>
   req("/api/admin/teams", {
@@ -66,3 +66,15 @@ export const adminGetTeam = (id) => req(`/api/admin/teams/${id}`);
 export const adminListUsers = () => req("/api/admin/users");
 export const adminDeleteUser = (id) =>
   req(`/api/admin/users/${id}`, { method: "DELETE" });
+
+// ── Super Admin ───────────────────────────────────────────────────────────────
+export const superAdminListOrgs = () => req("/api/super-admin/orgs");
+export const superAdminCreateOrg = (name) =>
+  req("/api/super-admin/orgs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+export const superAdminGetOrg = (id) => req(`/api/super-admin/orgs/${id}`);
+export const superAdminDeleteOrg = (id) =>
+  req(`/api/super-admin/orgs/${id}`, { method: "DELETE" });

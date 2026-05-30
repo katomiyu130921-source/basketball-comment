@@ -7,8 +7,8 @@ from auth import get_current_user
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-def require_admin(user=Depends(get_current_user)):
-    if user.get("role") != "admin":
+def require_org_admin(user=Depends(get_current_user)):
+    if user.get("role") not in ("org_admin", "super_admin"):
         raise HTTPException(403, "管理者専用です")
     return user
 
@@ -20,12 +20,16 @@ class TeamCreate(BaseModel):
 # ── チーム ────────────────────────────────────────────────────────────────────
 
 @router.post("/teams", status_code=201)
-def create_team(body: TeamCreate, user=Depends(require_admin)):
+def create_team(body: TeamCreate, user=Depends(require_org_admin)):
     if not body.name.strip():
         raise HTTPException(400, "チーム名を入力してください")
     code = secrets.token_urlsafe(8)
+    org_id = user["org_id"]
     conn = get_conn()
-    conn.execute("INSERT INTO teams (name, invite_code) VALUES (?, ?)", (body.name.strip(), code))
+    conn.execute(
+        "INSERT INTO teams (name, invite_code, org_id) VALUES (?, ?, ?)",
+        (body.name.strip(), code, org_id),
+    )
     conn.commit()
     team_id = conn.execute("SELECT id FROM teams WHERE invite_code = ?", (code,)).fetchone()["id"]
     conn.close()
@@ -33,7 +37,8 @@ def create_team(body: TeamCreate, user=Depends(require_admin)):
 
 
 @router.get("/teams")
-def list_teams(user=Depends(require_admin)):
+def list_teams(user=Depends(require_org_admin)):
+    org_id = user["org_id"]
     conn = get_conn()
     rows = conn.execute("""
         SELECT t.id, t.name, t.invite_code, t.created_at,
@@ -42,17 +47,21 @@ def list_teams(user=Depends(require_admin)):
         FROM teams t
         LEFT JOIN team_members tm ON t.id = tm.team_id
         LEFT JOIN videos v        ON t.id = v.team_id
+        WHERE t.org_id = ?
         GROUP BY t.id
         ORDER BY t.created_at DESC
-    """).fetchall()
+    """, (org_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 @router.get("/teams/{team_id}")
-def get_team(team_id: int, user=Depends(require_admin)):
+def get_team(team_id: int, user=Depends(require_org_admin)):
+    org_id = user["org_id"]
     conn = get_conn()
-    team = conn.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
+    team = conn.execute(
+        "SELECT * FROM teams WHERE id = ? AND org_id = ?", (team_id, org_id)
+    ).fetchone()
     if not team:
         conn.close()
         raise HTTPException(404, "チームが見つかりません")
@@ -67,9 +76,10 @@ def get_team(team_id: int, user=Depends(require_admin)):
 
 
 @router.delete("/teams/{team_id}", status_code=204)
-def delete_team(team_id: int, user=Depends(require_admin)):
+def delete_team(team_id: int, user=Depends(require_org_admin)):
+    org_id = user["org_id"]
     conn = get_conn()
-    conn.execute("DELETE FROM teams WHERE id = ?", (team_id,))
+    conn.execute("DELETE FROM teams WHERE id = ? AND org_id = ?", (team_id, org_id))
     conn.commit()
     conn.close()
 
@@ -77,7 +87,8 @@ def delete_team(team_id: int, user=Depends(require_admin)):
 # ── ユーザー ──────────────────────────────────────────────────────────────────
 
 @router.get("/users")
-def list_users(user=Depends(require_admin)):
+def list_users(user=Depends(require_org_admin)):
+    org_id = user["org_id"]
     conn = get_conn()
     rows = conn.execute("""
         SELECT u.id, u.username, u.role, u.created_at,
@@ -85,15 +96,20 @@ def list_users(user=Depends(require_admin)):
         FROM users u
         LEFT JOIN team_members tm ON u.id = tm.user_id
         LEFT JOIN teams t ON tm.team_id = t.id
+        WHERE u.org_id = ?
         ORDER BY u.created_at DESC
-    """).fetchall()
+    """, (org_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
 @router.delete("/users/{user_id}", status_code=204)
-def delete_user(user_id: int, user=Depends(require_admin)):
+def delete_user(user_id: int, user=Depends(require_org_admin)):
+    org_id = user["org_id"]
     conn = get_conn()
-    conn.execute("DELETE FROM users WHERE id = ? AND role != 'admin'", (user_id,))
+    conn.execute(
+        "DELETE FROM users WHERE id = ? AND org_id = ? AND role = 'member'",
+        (user_id, org_id),
+    )
     conn.commit()
     conn.close()

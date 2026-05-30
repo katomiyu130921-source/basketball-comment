@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import VideoList from "./pages/VideoList";
 import VideoDetail from "./pages/VideoDetail";
 import Admin from "./pages/Admin";
+import SuperAdmin from "./pages/SuperAdmin";
 
 const AuthContext = createContext(null);
 export function useAuth() { return useContext(AuthContext); }
@@ -40,10 +41,17 @@ function RequireAuth({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
-function RequireAdmin({ children }) {
+function RequireOrgAdmin({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== "admin") return <Navigate to="/" replace />;
+  if (!["org_admin", "super_admin"].includes(user.role)) return <Navigate to="/" replace />;
+  return children;
+}
+
+function RequireSuperAdmin({ children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "super_admin") return <Navigate to="/" replace />;
   return children;
 }
 
@@ -53,11 +61,22 @@ function Header() {
   if (!user) return null;
   return (
     <header className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-800 shrink-0">
-      <button onClick={() => nav("/")} className="font-bold text-orange-400 tracking-wide">
+      <button
+        onClick={() => nav(user.role === "super_admin" ? "/super-admin" : "/")}
+        className="font-bold text-orange-400 tracking-wide"
+      >
         🎬 Video Clip Note
       </button>
       <div className="flex items-center gap-4 text-sm">
-        {user.role === "admin" && (
+        {user.role === "super_admin" && (
+          <button
+            onClick={() => nav("/super-admin")}
+            className="text-purple-300 hover:text-purple-200 transition font-medium"
+          >
+            スーパー管理
+          </button>
+        )}
+        {user.role === "org_admin" && (
           <button
             onClick={() => nav("/admin")}
             className="text-orange-300 hover:text-orange-200 transition font-medium"
@@ -83,7 +102,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<RequireAuth><VideoList /></RequireAuth>} />
           <Route path="/videos/:id" element={<RequireAuth><VideoDetail /></RequireAuth>} />
-          <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
+          <Route path="/admin" element={<RequireOrgAdmin><Admin /></RequireOrgAdmin>} />
+          <Route path="/super-admin" element={<RequireSuperAdmin><SuperAdmin /></RequireSuperAdmin>} />
         </Routes>
       </div>
     </AuthProvider>

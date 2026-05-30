@@ -18,11 +18,19 @@ def get_conn() -> sqlite3.Connection:
 def init_db():
     conn = get_conn()
     conn.executescript("""
+        CREATE TABLE IF NOT EXISTS organizations (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            name       TEXT    NOT NULL,
+            admin_code TEXT    UNIQUE NOT NULL,
+            created_at TEXT    DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS users (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             username      TEXT    UNIQUE NOT NULL,
             password_hash TEXT    NOT NULL,
             role          TEXT    NOT NULL DEFAULT 'member',
+            org_id        INTEGER REFERENCES organizations(id) ON DELETE SET NULL,
             created_at    TEXT    DEFAULT (datetime('now'))
         );
 
@@ -30,6 +38,7 @@ def init_db():
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             name        TEXT    NOT NULL,
             invite_code TEXT    UNIQUE NOT NULL,
+            org_id      INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
             created_at  TEXT    DEFAULT (datetime('now'))
         );
 
@@ -65,9 +74,11 @@ def init_db():
         );
     """)
 
-    # 既存DBへのマイグレーション（カラム追加）
+    # 既存DBへのマイグレーション
     for sql in [
         "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'",
+        "ALTER TABLE users ADD COLUMN org_id INTEGER REFERENCES organizations(id)",
+        "ALTER TABLE teams ADD COLUMN org_id INTEGER REFERENCES organizations(id)",
         "ALTER TABLE videos ADD COLUMN team_id INTEGER REFERENCES teams(id)",
     ]:
         try:
