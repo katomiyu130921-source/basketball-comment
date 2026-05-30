@@ -108,6 +108,7 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [newTeamName, setNewTeamName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [tab, setTab] = useState("teams"); // "teams" | "users"
 
@@ -123,11 +124,18 @@ export default function Admin() {
     e.preventDefault();
     if (!newTeamName.trim()) return;
     setCreating(true);
+    setCreateError("");
     try {
       await adminCreateTeam(newTeamName.trim());
       setNewTeamName("");
       await load();
-    } catch {
+    } catch (err) {
+      try {
+        const parsed = JSON.parse(err.message);
+        setCreateError(parsed.detail ?? err.message);
+      } catch {
+        setCreateError(err.message);
+      }
     } finally {
       setCreating(false);
     }
@@ -168,21 +176,24 @@ export default function Admin() {
       {tab === "teams" && (
         <div className="space-y-4">
           {/* チーム作成フォーム */}
-          <form onSubmit={createTeam} className="flex gap-2">
-            <input
-              type="text"
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              placeholder="例: チームA、U18男子"
-              className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 text-sm"
-            />
-            <button
-              type="submit"
-              disabled={creating || !newTeamName.trim()}
-              className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white px-4 py-2 rounded-lg text-sm font-medium transition shrink-0"
-            >
-              チーム作成
-            </button>
+          <form onSubmit={createTeam} className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="例: チームA、U18男子"
+                className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={creating || !newTeamName.trim()}
+                className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white px-4 py-2 rounded-lg text-sm font-medium transition shrink-0"
+              >
+                チーム作成
+              </button>
+            </div>
+            {createError && <p className="text-red-400 text-sm">{createError}</p>}
           </form>
 
           {/* チーム一覧 */}

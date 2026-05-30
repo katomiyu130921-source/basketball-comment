@@ -44,7 +44,8 @@ function RequireAuth({ children }) {
 function RequireOrgAdmin({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (!["org_admin", "super_admin"].includes(user.role)) return <Navigate to="/" replace />;
+  if (user.role === "super_admin") return <Navigate to="/super-admin" replace />;
+  if (user.role !== "org_admin") return <Navigate to="/" replace />;
   return children;
 }
 
