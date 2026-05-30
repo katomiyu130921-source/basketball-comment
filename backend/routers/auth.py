@@ -104,3 +104,31 @@ def login(body: LoginRequest):
 @router.get("/me")
 def me(user=Depends(get_current_user)):
     return user
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.put("/password")
+def change_password(body: ChangePasswordRequest, user=Depends(get_current_user)):
+    if len(body.new_password) < 6:
+        raise HTTPException(400, "新しいパスワードは6文字以上")
+
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT password_hash FROM users WHERE id = ?", (user["id"],)
+    ).fetchone()
+
+    if not verify_password(body.current_password, row["password_hash"]):
+        conn.close()
+        raise HTTPException(400, "現在のパスワードが違います")
+
+    conn.execute(
+        "UPDATE users SET password_hash = ? WHERE id = ?",
+        (hash_password(body.new_password), user["id"]),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True}
