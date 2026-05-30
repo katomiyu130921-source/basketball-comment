@@ -32,7 +32,7 @@ export default function Login() {
     <div className="flex-1 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-bold text-center mb-8 text-orange-400">
-          🏀 Basketball Comment
+          🎬 Video Clip Note
         </h1>
 
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">

@@ -134,7 +134,7 @@ def get_tracking(video_id: str, user=Depends(get_current_user)):
 # ── Video stream (Range-aware for mobile seek support) ────────────────────────
 
 @router.get("/{video_id}/stream")
-async def stream_video(video_id: str, request: Request, user=Depends(get_current_user)):
+async def stream_video(video_id: str, request: Request):
     vdir = video_dir(video_id)
     video_files = list(vdir.glob("video.*"))
     if not video_files:

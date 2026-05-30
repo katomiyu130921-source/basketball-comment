@@ -54,7 +54,7 @@ function Header() {
         onClick={() => nav("/")}
         className="font-bold text-orange-400 tracking-wide"
       >
-        🏀 Basketball Comment
+        🎬 Video Clip Note
       </button>
       <div className="flex items-center gap-3 text-sm">
         <span className="text-gray-400">{user.username}</span>
