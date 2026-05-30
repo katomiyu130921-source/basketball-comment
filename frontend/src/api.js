@@ -78,3 +78,11 @@ export const superAdminCreateOrg = (name) =>
 export const superAdminGetOrg = (id) => req(`/api/super-admin/orgs/${id}`);
 export const superAdminDeleteOrg = (id) =>
   req(`/api/super-admin/orgs/${id}`, { method: "DELETE" });
+export const superAdminCreateTeam = (orgId, name) =>
+  req(`/api/super-admin/orgs/${orgId}/teams`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+export const superAdminDeleteTeam = (orgId, teamId) =>
+  req(`/api/super-admin/orgs/${orgId}/teams/${teamId}`, { method: "DELETE" });

@@ -16,6 +16,9 @@ def require_super_admin(user=Depends(get_current_user)):
 class OrgCreate(BaseModel):
     name: str
 
+class TeamCreate(BaseModel):
+    name: str
+
 
 # ── 組織 ──────────────────────────────────────────────────────────────────────
 
@@ -86,5 +89,35 @@ def get_org(org_id: int, user=Depends(require_super_admin)):
 def delete_org(org_id: int, user=Depends(require_super_admin)):
     conn = get_conn()
     conn.execute("DELETE FROM organizations WHERE id = ?", (org_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── 組織内チーム管理 ───────────────────────────────────────────────────────────
+
+@router.post("/orgs/{org_id}/teams", status_code=201)
+def create_team(org_id: int, body: TeamCreate, user=Depends(require_super_admin)):
+    if not body.name.strip():
+        raise HTTPException(400, "チーム名を入力してください")
+    conn = get_conn()
+    org = conn.execute("SELECT id FROM organizations WHERE id = ?", (org_id,)).fetchone()
+    if not org:
+        conn.close()
+        raise HTTPException(404, "組織が見つかりません")
+    code = secrets.token_urlsafe(8)
+    conn.execute(
+        "INSERT INTO teams (name, invite_code, org_id) VALUES (?, ?, ?)",
+        (body.name.strip(), code, org_id),
+    )
+    conn.commit()
+    team_id = conn.execute("SELECT id FROM teams WHERE invite_code = ?", (code,)).fetchone()["id"]
+    conn.close()
+    return {"id": team_id, "name": body.name.strip(), "invite_code": code}
+
+
+@router.delete("/orgs/{org_id}/teams/{team_id}", status_code=204)
+def delete_team(org_id: int, team_id: int, user=Depends(require_super_admin)):
+    conn = get_conn()
+    conn.execute("DELETE FROM teams WHERE id = ? AND org_id = ?", (team_id, org_id))
     conn.commit()
     conn.close()

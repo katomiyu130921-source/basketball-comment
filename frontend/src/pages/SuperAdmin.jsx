@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   superAdminListOrgs, superAdminCreateOrg,
   superAdminGetOrg, superAdminDeleteOrg,
+  superAdminCreateTeam, superAdminDeleteTeam,
 } from "../api";
 
 function CopyButton({ text }) {
@@ -23,49 +24,114 @@ function CopyButton({ text }) {
 
 function OrgDetail({ orgId, onClose }) {
   const [org, setOrg] = useState(null);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    superAdminGetOrg(orgId).then(setOrg).catch(() => {});
-  }, [orgId]);
+  const reload = () => superAdminGetOrg(orgId).then(setOrg).catch(() => {});
+
+  useEffect(() => { reload(); }, [orgId]);
+
+  const createTeam = async (e) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+    setCreating(true);
+    setError("");
+    try {
+      await superAdminCreateTeam(orgId, newTeamName.trim());
+      setNewTeamName("");
+      await reload();
+    } catch (err) {
+      try { setError(JSON.parse(err.message).detail); } catch { setError(err.message); }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteTeam = async (teamId, name) => {
+    if (!confirm(`「${name}」を削除しますか？`)) return;
+    await superAdminDeleteTeam(orgId, teamId);
+    await reload();
+  };
 
   if (!org) return null;
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-700 max-h-[80vh] flex flex-col">
+      <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-700 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">{org.name}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-white">✕</button>
         </div>
-        <div className="mb-3 flex items-center gap-2 text-sm">
+
+        {/* 管理者コード */}
+        <div className="mb-4 flex items-center gap-2 text-sm">
           <span className="text-gray-500">管理者コード:</span>
           <span className="font-mono text-purple-400 bg-gray-800 px-2 py-0.5 rounded">{org.admin_code}</span>
           <CopyButton text={org.admin_code} />
         </div>
-        <div className="overflow-y-auto flex-1 space-y-4">
+
+        <div className="overflow-y-auto flex-1 space-y-5">
+          {/* チーム管理 */}
           <div>
-            <h3 className="text-sm text-gray-500 mb-2">チーム ({org.teams?.length ?? 0})</h3>
+            <h3 className="text-sm text-gray-400 font-medium mb-2">チーム ({org.teams?.length ?? 0})</h3>
+
+            {/* チーム作成フォーム */}
+            <form onSubmit={createTeam} className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="チーム名"
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={creating || !newTeamName.trim()}
+                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shrink-0"
+              >
+                作成
+              </button>
+            </form>
+            {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
+
             {org.teams?.length === 0 ? (
               <p className="text-gray-600 text-xs">チームなし</p>
             ) : (
               org.teams?.map((t) => (
-                <div key={t.id} className="flex items-center justify-between text-sm bg-gray-800 rounded px-3 py-2 mb-1">
-                  <span>{t.name}</span>
-                  <span className="text-gray-500 text-xs font-mono">{t.invite_code}</span>
+                <div key={t.id} className="flex items-center justify-between text-sm bg-gray-800 rounded px-3 py-2 mb-1 gap-2">
+                  <span className="truncate">{t.name}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-gray-500 text-xs font-mono">{t.invite_code}</span>
+                    <CopyButton text={t.invite_code} />
+                    <button
+                      onClick={() => deleteTeam(t.id, t.name)}
+                      className="text-red-500 hover:text-red-400 text-xs ml-1"
+                    >
+                      削除
+                    </button>
+                  </div>
                 </div>
               ))
             )}
           </div>
+
+          {/* ユーザー一覧 */}
           <div>
-            <h3 className="text-sm text-gray-500 mb-2">ユーザー ({org.users?.length ?? 0})</h3>
-            {org.users?.map((u) => (
-              <div key={u.id} className="flex items-center justify-between text-sm bg-gray-800 rounded px-3 py-2 mb-1">
-                <span>{u.username}</span>
-                <span className="text-xs text-gray-500">{u.role}</span>
-              </div>
-            ))}
+            <h3 className="text-sm text-gray-400 font-medium mb-2">ユーザー ({org.users?.length ?? 0})</h3>
+            {org.users?.length === 0 ? (
+              <p className="text-gray-600 text-xs">ユーザーなし</p>
+            ) : (
+              org.users?.map((u) => (
+                <div key={u.id} className="flex items-center justify-between text-sm bg-gray-800 rounded px-3 py-2 mb-1">
+                  <span>{u.username}</span>
+                  <span className="text-xs text-gray-500">{u.role}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
+
         <button
           onClick={onClose}
           className="mt-4 w-full py-2 border border-gray-700 rounded-lg text-gray-400 hover:text-white transition text-sm"
@@ -162,7 +228,7 @@ export default function SuperAdmin() {
                     onClick={() => setSelectedOrgId(org.id)}
                     className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-2 py-1 rounded transition"
                   >
-                    詳細
+                    管理
                   </button>
                   <button
                     onClick={() => deleteOrg(org.id, org.name)}
@@ -182,14 +248,16 @@ export default function SuperAdmin() {
         <p className="font-medium text-gray-400 mb-2">運用フロー</p>
         <ol className="list-decimal list-inside space-y-1">
           <li>「組織を追加」でクライアント組織を作成</li>
-          <li>管理者コードをクライアントに共有（メールなど）</li>
-          <li>クライアントは「新規登録 → 管理者コード」で org_admin として登録</li>
-          <li>org_admin がチームを作成し、招待コードで選手を招待</li>
+          <li>「管理」ボタンからチームを作成 → 招待コードを選手に共有</li>
+          <li>選手は「新規登録 → 招待コード」で登録するだけ</li>
         </ol>
       </div>
 
       {selectedOrgId && (
-        <OrgDetail orgId={selectedOrgId} onClose={() => setSelectedOrgId(null)} />
+        <OrgDetail
+          orgId={selectedOrgId}
+          onClose={() => { setSelectedOrgId(null); load(); }}
+        />
       )}
     </div>
   );
