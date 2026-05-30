@@ -11,21 +11,21 @@ export function useAuth() { return useContext(AuthContext); }
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const token    = localStorage.getItem("token");
-    const username = localStorage.getItem("username");
-    const role     = localStorage.getItem("role");
+    const token    = sessionStorage.getItem("token");
+    const username = sessionStorage.getItem("username");
+    const role     = sessionStorage.getItem("role");
     return token ? { token, username, role } : null;
   });
 
   const signIn = (token, username, role) => {
-    localStorage.setItem("token",    token);
-    localStorage.setItem("username", username);
-    localStorage.setItem("role",     role ?? "member");
+    sessionStorage.setItem("token",    token);
+    sessionStorage.setItem("username", username);
+    sessionStorage.setItem("role",     role ?? "member");
     setUser({ token, username, role: role ?? "member" });
   };
 
   const signOut = () => {
-    ["token", "username", "role"].forEach(k => localStorage.removeItem(k));
+    ["token", "username", "role"].forEach(k => sessionStorage.removeItem(k));
     setUser(null);
   };
 
@@ -68,7 +68,7 @@ function ChangePasswordModal({ onClose }) {
     setError("");
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const res = await fetch("/api/auth/password", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
