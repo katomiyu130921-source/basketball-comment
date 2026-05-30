@@ -3,30 +3,28 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import VideoList from "./pages/VideoList";
 import VideoDetail from "./pages/VideoDetail";
+import Admin from "./pages/Admin";
 
-// ── Auth context ──────────────────────────────────────────────────────────────
 const AuthContext = createContext(null);
-
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export function useAuth() { return useContext(AuthContext); }
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const token = localStorage.getItem("token");
+    const token    = localStorage.getItem("token");
     const username = localStorage.getItem("username");
-    return token ? { token, username } : null;
+    const role     = localStorage.getItem("role");
+    return token ? { token, username, role } : null;
   });
 
-  const signIn = (token, username) => {
-    localStorage.setItem("token", token);
+  const signIn = (token, username, role) => {
+    localStorage.setItem("token",    token);
     localStorage.setItem("username", username);
-    setUser({ token, username });
+    localStorage.setItem("role",     role ?? "member");
+    setUser({ token, username, role: role ?? "member" });
   };
 
   const signOut = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
+    ["token", "username", "role"].forEach(k => localStorage.removeItem(k));
     setUser(null);
   };
 
@@ -42,26 +40,33 @@ function RequireAuth({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
-// ── App shell ─────────────────────────────────────────────────────────────────
+function RequireAdmin({ children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "admin") return <Navigate to="/" replace />;
+  return children;
+}
+
 function Header() {
   const { user, signOut } = useAuth();
   const nav = useNavigate();
-
   if (!user) return null;
   return (
-    <header className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-800">
-      <button
-        onClick={() => nav("/")}
-        className="font-bold text-orange-400 tracking-wide"
-      >
+    <header className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-800 shrink-0">
+      <button onClick={() => nav("/")} className="font-bold text-orange-400 tracking-wide">
         🎬 Video Clip Note
       </button>
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex items-center gap-4 text-sm">
+        {user.role === "admin" && (
+          <button
+            onClick={() => nav("/admin")}
+            className="text-orange-300 hover:text-orange-200 transition font-medium"
+          >
+            管理画面
+          </button>
+        )}
         <span className="text-gray-400">{user.username}</span>
-        <button
-          onClick={signOut}
-          className="text-gray-500 hover:text-gray-200 transition"
-        >
+        <button onClick={signOut} className="text-gray-500 hover:text-gray-200 transition">
           ログアウト
         </button>
       </div>
@@ -76,22 +81,9 @@ export default function App() {
         <Header />
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <VideoList />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/videos/:id"
-            element={
-              <RequireAuth>
-                <VideoDetail />
-              </RequireAuth>
-            }
-          />
+          <Route path="/" element={<RequireAuth><VideoList /></RequireAuth>} />
+          <Route path="/videos/:id" element={<RequireAuth><VideoDetail /></RequireAuth>} />
+          <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         </Routes>
       </div>
     </AuthProvider>

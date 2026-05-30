@@ -71,11 +71,13 @@ async def upload_video(
         (vdir / "tracking.json").write_bytes(tracking_bytes)
         has_tracking = True
 
+    team_id = user.get("team_id")
+
     conn = get_conn()
     conn.execute(
-        """INSERT INTO videos (id, title, filename, fps, width, height, total_frames, has_tracking, uploaded_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (video_id, title, video.filename, fps, width, height, total_frames, int(has_tracking), user["id"]),
+        """INSERT INTO videos (id, title, filename, fps, width, height, total_frames, has_tracking, team_id, uploaded_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (video_id, title, video.filename, fps, width, height, total_frames, int(has_tracking), team_id, user["id"]),
     )
     conn.commit()
     conn.close()
@@ -88,12 +90,27 @@ async def upload_video(
 @router.get("")
 def list_videos(user=Depends(get_current_user)):
     conn = get_conn()
-    rows = conn.execute(
-        """SELECT v.id, v.title, v.fps, v.width, v.height, v.total_frames,
-                  v.has_tracking, v.created_at, u.username AS uploader
-           FROM videos v JOIN users u ON v.uploaded_by = u.id
-           ORDER BY v.created_at DESC"""
-    ).fetchall()
+    if user["role"] == "admin":
+        rows = conn.execute("""
+            SELECT v.id, v.title, v.fps, v.width, v.height, v.total_frames,
+                   v.has_tracking, v.created_at, u.username AS uploader,
+                   t.name AS team_name
+            FROM videos v
+            JOIN users u ON v.uploaded_by = u.id
+            LEFT JOIN teams t ON v.team_id = t.id
+            ORDER BY v.created_at DESC
+        """).fetchall()
+    else:
+        rows = conn.execute("""
+            SELECT v.id, v.title, v.fps, v.width, v.height, v.total_frames,
+                   v.has_tracking, v.created_at, u.username AS uploader,
+                   t.name AS team_name
+            FROM videos v
+            JOIN users u ON v.uploaded_by = u.id
+            LEFT JOIN teams t ON v.team_id = t.id
+            WHERE v.team_id = ?
+            ORDER BY v.created_at DESC
+        """, (user["team_id"],)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 

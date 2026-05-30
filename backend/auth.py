@@ -1,12 +1,11 @@
+import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 import bcrypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from db import get_conn
 
-import os
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-in-production-use-env-var")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 30
@@ -35,8 +34,20 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> d
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     conn = get_conn()
-    row = conn.execute("SELECT id, username FROM users WHERE id = ?", (user_id,)).fetchone()
+    row = conn.execute("""
+        SELECT u.id, u.username, u.role, tm.team_id
+        FROM users u
+        LEFT JOIN team_members tm ON u.id = tm.user_id
+        WHERE u.id = ?
+    """, (user_id,)).fetchone()
     conn.close()
+
     if row is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return {"id": row["id"], "username": row["username"]}
+
+    return {
+        "id":      row["id"],
+        "username": row["username"],
+        "role":    row["role"],
+        "team_id": row["team_id"],
+    }
